@@ -1,0 +1,9 @@
+{
+  "name": "collab-board-sync",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "nostr-tools": "2.13.0",
+    "ws": "^8.18.0"
+  }
+}

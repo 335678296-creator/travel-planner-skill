@@ -1,0 +1,173 @@
+<!-- ============================================================
+  协作看板 · 编辑模式 + ☁️ 云端自动同步（免注册，Nostr 公共中继）
+  用法：把本文件 ①CSS ②工具栏 div ③script 三段嵌进目标静态页 </body> 前，
+  替换 4 个占位符：
+    {{KEY}}      localStorage 前缀，每个项目一个，如 'uk-trip-edits-v1'
+    {{NOSTR_SK}} / {{NOSTR_PK}}  用 scripts/nostr-publish.mjs genkey 生成，全项目共用一对
+    {{DTAG}}     云端文档标识，每个项目一个，如 'uk-trip-2026-edits'
+  页面结构要求：要可编辑的内容放在 <table> 里（脚本按表格索引同步全部 table 的 innerHTML）。
+============================================================ -->
+
+<!-- ① CSS -->
+<style>
+  #editbar {
+    position:fixed; left:0; right:0; bottom:0; background:#1e3a5a; color:#fff;
+    padding:9px 14px; display:flex; gap:8px; align-items:center; z-index:99;
+    font-size:12.5px; flex-wrap:wrap; box-shadow:0 -2px 10px rgba(0,0,0,.15);
+  }
+  #editbar button {
+    background:#fff; color:#1e3a5a; border:none; border-radius:6px;
+    padding:5px 12px; font-size:12.5px; font-weight:600; cursor:pointer;
+  }
+  #editbar button:hover { background:#dce8ee; }
+  #editnote { opacity:.85; font-size:12px; display:none; }
+  body.editing #editnote { display:inline; }
+  body.editing td { outline:1px dashed #c9a24b; outline-offset:-1px; cursor:text; }
+</style>
+
+<!-- ② 工具栏（放在页面底部） -->
+<div id="editbar">
+  <button id="btnEdit">✏️ 编辑模式</button>
+  <button id="btnExport" style="display:none">📤 导出变更（备用）</button>
+  <button id="btnReset" style="display:none">🔁 重置修改</button>
+  <span id="editnote">✅ 编辑中：直接点表格文字改，<b>改动自动云端同步</b>，对方刷新页面就能看到。</span>
+  <span id="syncstat" style="margin-left:auto;opacity:.9;font-size:12px">☁️ …</span>
+</div>
+
+<!-- ③ 同步脚本 -->
+<script>
+(function(){
+  const KEY='{{KEY}}';
+  const NOSTR_SK='{{NOSTR_SK}}';
+  const NOSTR_PK='{{NOSTR_PK}}';
+  const DTAG='{{DTAG}}';
+  const RELAYS=['wss://relay.damus.io','wss://nos.lol','wss://nostr.mom','wss://offchain.pub'];
+  const CDNS=['https://cdn.jsdelivr.net/npm/nostr-tools@2.13.0/+esm','https://unpkg.com/nostr-tools@2.13.0/+esm'];
+
+  const tables=[...document.querySelectorAll('table')];
+  const stat=document.getElementById('syncstat');
+  let localStamp=0, cloudStamp=0, putTimer=null, NT=null, pool=null;
+
+  function setStat(t){ if(stat) stat.textContent=t; }
+  function applyObj(obj){
+    tables.forEach((t,i)=>{ if(obj && obj[i]){ try{ t.innerHTML=obj[i]; }catch(e){} } });
+  }
+  function collectObj(){
+    const o={}; tables.forEach((t,i)=>{ o[i]=t.innerHTML; }); return o;
+  }
+  function saveLocal(){
+    tables.forEach((t,i)=>localStorage.setItem(KEY+'-'+i,t.innerHTML));
+    localStamp=Date.now();
+    localStorage.setItem(KEY+'-meta',String(localStamp));
+  }
+
+  // 先用本机缓存渲染（秒开）
+  try{ localStamp=parseInt(localStorage.getItem(KEY+'-meta')||'0',10)||0; }catch(e){}
+  tables.forEach((t,i)=>{
+    const saved=localStorage.getItem(KEY+'-'+i);
+    if(saved){ try{ t.innerHTML=saved; }catch(e){} }
+  });
+
+  // 连接云端：谁新用谁
+  setStat('☁️ 正在连接云端…');
+  (async()=>{
+    for(const c of CDNS){ try{ NT=await import(c); break; }catch(e){} }
+    if(!NT){ setStat('⚠️ 同步组件加载失败 · 改动只存本机'); return; }
+    try{
+      pool=new NT.SimplePool();
+      // 关键：默认连接超时 4.4s 在国内网络会误杀，必须放宽
+      await Promise.allSettled(RELAYS.map(u=>pool.ensureRelay(u,{connectionTimeout:25000})));
+      const query=pool.querySync(RELAYS,{kinds:[30078],authors:[NOSTR_PK],'#d':[DTAG]},{maxWait:25000});
+      const evs=await Promise.race([query,new Promise(r=>setTimeout(()=>r([]),30000))]);
+      const latest=(evs||[]).sort((a,b)=>b.created_at-a.created_at)[0];
+      if(latest){
+        const d=JSON.parse(latest.content||'{}');
+        cloudStamp=Date.parse(d.updatedAt||'')||0;
+        if(d.tables && cloudStamp>localStamp){
+          applyObj(d.tables);
+          tables.forEach((t,i)=>localStorage.setItem(KEY+'-'+i,t.innerHTML));
+          localStamp=cloudStamp;
+          localStorage.setItem(KEY+'-meta',String(cloudStamp));
+        }
+        const when=d.updatedAt?new Date(d.updatedAt).toLocaleString('zh-CN',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'';
+        setStat('☁️ 已同步'+(when?' · 最近保存 '+when:''));
+      }else{
+        setStat('☁️ 已连接');
+      }
+      if(localStamp>cloudStamp) pushCloud(); // 本机有未同步改动，补推
+    }catch(e){ setStat('⚠️ 云端暂不可用 · 改动先存本机'); }
+  })();
+
+  async function pushCloud(){
+    if(!NT||!pool){ setStat('⚠️ 云端未连接 · 已存本机'); return; }
+    setStat('☁️ 同步中…');
+    try{
+      await Promise.allSettled(RELAYS.map(u=>pool.ensureRelay(u,{connectionTimeout:25000})));
+      const sk=Uint8Array.from(NOSTR_SK.match(/../g).map(h=>parseInt(h,16)));
+      const ev=NT.finalizeEvent({
+        kind:30078, created_at:Math.floor(Date.now()/1000), tags:[['d',DTAG]],
+        content:JSON.stringify({tables:collectObj(),updatedAt:new Date().toISOString()})
+      },sk);
+      const rs=await Promise.allSettled(pool.publish(RELAYS,ev));
+      if(rs.some(r=>r.status==='fulfilled')){ cloudStamp=Date.now(); setStat('☁️ 已同步 · 对方刷新可见'); }
+      else setStat('⚠️ 同步失败 · 已存本机，重新打开会自动补同步');
+    }catch(e){ setStat('⚠️ 同步失败 · 已存本机'); }
+  }
+
+  let editOn=false;
+  const bE=document.getElementById('btnEdit'),
+        bX=document.getElementById('btnExport'),
+        bR=document.getElementById('btnReset');
+
+  function setEdit(on){
+    editOn=on;
+    document.body.classList.toggle('editing',on);
+    document.querySelectorAll('td').forEach(td=>{
+      td.contentEditable = on ? 'plaintext-only' : 'false';
+    });
+    bE.textContent = on ? '✅ 完成编辑' : '✏️ 编辑模式';
+    bX.style.display = on ? '' : 'none';
+    bR.style.display = on ? '' : 'none';
+  }
+  bE.onclick=()=>setEdit(!editOn);
+
+  document.addEventListener('input',e=>{
+    if(!editOn) return;
+    if(!e.target.closest('table')) return;
+    saveLocal();
+    clearTimeout(putTimer);
+    putTimer=setTimeout(pushCloud,1000);
+  });
+
+  // 备用：把第一张表（约定为"总表"）导出为文本清单
+  bX.onclick=()=>{
+    const master=tables[0];
+    const lines=['📒 更新（'+new Date().toLocaleString('zh-CN')+'）',''];
+    [...master.querySelectorAll('tr')].slice(1).forEach(tr=>{
+      const c=[...tr.querySelectorAll('td')].map(td=>td.innerText.trim().replace(/\s+/g,' '));
+      if(c.length>=3) lines.push('• '+c[0]+' ｜ '+c[2]+(c[3]?' ｜ '+c[3]:''));
+    });
+    const txt=lines.join('\n');
+    (navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject())
+      .then(()=>{ bX.textContent='✅ 已复制'; setTimeout(()=>bX.textContent='📤 导出变更（备用）',2500); })
+      .catch(()=>{ prompt('复制下面内容：',txt); });
+  };
+
+  bR.onclick=async()=>{
+    if(confirm('确定清除全部修改，恢复成发布时的版本？（云端也会一起清掉）')){
+      tables.forEach((t,i)=>localStorage.removeItem(KEY+'-'+i));
+      localStorage.removeItem(KEY+'-meta');
+      if(NT&&pool){
+        try{
+          await Promise.allSettled(RELAYS.map(u=>pool.ensureRelay(u,{connectionTimeout:25000})));
+          const sk=Uint8Array.from(NOSTR_SK.match(/../g).map(h=>parseInt(h,16)));
+          const ev=NT.finalizeEvent({kind:30078,created_at:Math.floor(Date.now()/1000),tags:[['d',DTAG]],
+            content:JSON.stringify({tables:{},updatedAt:new Date().toISOString()})},sk);
+          await Promise.allSettled(pool.publish(RELAYS,ev));
+        }catch(e){}
+      }
+      location.reload();
+    }
+  };
+})();
+</script>
