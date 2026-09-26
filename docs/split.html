@@ -13,6 +13,8 @@
     --orange: #e8833a; --red: #d9534a; --mustard: #e0a92e; --green: #6aa36f;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { overflow-x: hidden; max-width: 100%; }
+  input, select { min-width: 0; }
   body {
     font-family: "Noto Sans SC", "PingFang SC", sans-serif; color: var(--ink); line-height: 1.75;
     background: var(--paper);
@@ -49,14 +51,14 @@
   .add-btn:hover { background: var(--blue); color: #fff; }
 
   /* 汇率 */
-  .rates { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+  .rates { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
   .rate-cell { display: flex; align-items: center; gap: 6px; font-size: 13px; background: #f4f7fb; border: 1.5px dashed #b9c6d8; border-radius: 8px; padding: 6px 8px; }
   .rate-cell label { font-weight: 700; color: var(--blue); white-space: nowrap; }
   .rate-cell input { width: 100%; padding: 4px 6px; font-size: 13px; border-width: 1.5px; }
 
   /* 记账表单 */
-  .form-grid { display: grid; grid-template-columns: 1fr 110px 100px; gap: 8px; margin-bottom: 8px; }
-  .form-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+  .form-grid { display: grid; grid-template-columns: minmax(0,1fr) 110px 100px; gap: 8px; margin-bottom: 8px; }
+  .form-grid2 { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 8px; margin-bottom: 10px; }
   .who { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 14px; }
   .who label { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border: 2px solid #c6d2e0; border-radius: 999px; font-size: 13.5px; cursor: pointer; user-select: none; }
   .who label.on { border-color: var(--green); background: #eef6ee; color: #3f6b44; }
