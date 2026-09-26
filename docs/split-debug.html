@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🧮 AA 分账小工具 · 旅行人均消费看板</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=ZCOOL+KuaiLe&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #fbf7ec; --blue: #35618e; --ink: #3a3f4a;
+    --orange: #e8833a; --red: #d9534a; --mustard: #e0a92e; --green: #6aa36f;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { overflow-x: hidden; max-width: 100%; }
+  input, select { min-width: 0; }
+  body {
+    font-family: "Noto Sans SC", "PingFang SC", sans-serif; color: var(--ink); line-height: 1.75;
+    background: var(--paper);
+    background-image: radial-gradient(rgba(58,63,74,.045) 1px, transparent 1px), radial-gradient(rgba(58,63,74,.03) 1px, transparent 1px);
+    background-size: 22px 22px, 46px 46px; background-position: 0 0, 11px 11px;
+  }
+  .hand-zh { font-family: "ZCOOL KuaiLe", sans-serif; }
+  .hand-en { font-family: "Caveat", cursive; }
+  .wobbly { border: 2.5px solid var(--blue); border-radius: 255px 18px 225px 18px / 18px 225px 18px 255px; }
+  .wobbly2 { border: 2.5px solid var(--blue); border-radius: 18px 225px 18px 255px / 225px 18px 255px 18px; }
+
+  .hero { text-align: center; padding: 46px 20px 6px; }
+  .hero h1 { font-size: clamp(30px, 6vw, 44px); color: var(--blue); }
+  .hero .en { font-size: clamp(20px, 3.6vw, 26px); color: var(--orange); display: inline-block; transform: rotate(-2deg); }
+  .hero .sub { color: #6a7180; font-size: 14px; margin-top: 10px; }
+  .hero .back { display: inline-block; margin-top: 10px; font-size: 13.5px; color: var(--blue); text-decoration: none; border-bottom: 2px solid var(--mustard); }
+
+  .wrap { max-width: 720px; margin: 24px auto 0; padding: 0 18px 80px; }
+  section { background: #fffdf7; padding: 22px 22px 20px; margin: 26px 0; position: relative; box-shadow: 3px 4px 0 rgba(53,97,142,.14); }
+  section h2 { font-size: 20px; color: var(--blue); margin-bottom: 4px; }
+  section h2 .en { font-size: 18px; color: var(--orange); margin-left: 6px; }
+  section .hint { font-size: 12.5px; color: #8a8f9a; margin-bottom: 12px; }
+
+  input, select { font-family: inherit; font-size: 14px; padding: 8px 10px; border: 2px solid #c6d2e0; border-radius: 8px; background: #fff; color: var(--ink); outline: none; }
+  input:focus, select:focus { border-color: var(--blue); }
+  button { font-family: "ZCOOL KuaiLe", sans-serif; cursor: pointer; transition: .2s; }
+
+  /* 成员 */
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 12px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; background: var(--blue); color: #fff; border-radius: 999px; font-size: 14px; }
+  .chip b { cursor: pointer; opacity: .8; font-family: sans-serif; } .chip b:hover { opacity: 1; color: #ffd9c4; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .add-btn { padding: 8px 18px; border: 2px dashed var(--blue); background: #fff; color: var(--blue); border-radius: 999px; font-size: 14px; }
+  .add-btn:hover { background: var(--blue); color: #fff; }
+
+  /* 汇率 */
+  .rates { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
+  .rate-cell { display: flex; align-items: center; gap: 6px; font-size: 13px; background: #f4f7fb; border: 1.5px dashed #b9c6d8; border-radius: 8px; padding: 6px 8px; }
+  .rate-cell label { font-weight: 700; color: var(--blue); white-space: nowrap; }
+  .rate-cell input { width: 100%; padding: 4px 6px; font-size: 13px; border-width: 1.5px; }
+
+  /* 记账表单 */
+  .form-grid { display: grid; grid-template-columns: minmax(0,1fr) 110px 100px; gap: 8px; margin-bottom: 8px; }
+  .form-grid2 { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 8px; margin-bottom: 10px; }
+  .who { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 14px; }
+  .who label { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border: 2px solid #c6d2e0; border-radius: 999px; font-size: 13.5px; cursor: pointer; user-select: none; }
+  .who label.on { border-color: var(--green); background: #eef6ee; color: #3f6b44; }
+  .who input { display: none; }
+  .big-btn { display: block; width: 100%; padding: 12px; border: 2.5px solid var(--blue); background: var(--blue); color: #fff; font-size: 17px; letter-spacing: .1em; border-radius: 255px 18px 225px 18px / 18px 225px 18px 255px; }
+  .big-btn:hover { background: #fff; color: var(--blue); }
+
+  /* 账单列表 */
+  .exp { display: flex; align-items: center; gap: 10px; padding: 10px 4px; border-bottom: 1px dashed #d9d2c0; font-size: 14px; }
+  .exp:last-child { border-bottom: none; }
+  .exp .t { flex: 1; min-width: 0; }
+  .exp .t small { display: block; color: #8a8f9a; font-size: 12px; }
+  .exp .amt { text-align: right; white-space: nowrap; font-weight: 700; color: var(--blue); }
+  .exp .amt small { display: block; font-weight: 400; color: #8a8f9a; font-size: 11.5px; }
+  .exp .del { border: none; background: none; color: var(--red); font-size: 16px; padding: 2px 6px; }
+  .empty { text-align: center; color: #a5aab4; font-size: 13.5px; padding: 14px 0; }
+
+  /* 看板 */
+  .sum-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+  .sum-box { text-align: center; padding: 12px 6px; background: #f4f7fb; border-radius: 10px; border: 1.5px dashed #b9c6d8; }
+  .sum-box .v { font-size: 22px; font-weight: 700; color: var(--blue); font-family: "Caveat", "ZCOOL KuaiLe", cursive; }
+  .sum-box .k { font-size: 12px; color: #8a8f9a; }
+  .person { display: flex; align-items: center; gap: 10px; padding: 9px 4px; border-bottom: 1px dashed #d9d2c0; font-size: 14px; }
+  .person:last-child { border-bottom: none; }
+  .person .nm { font-weight: 700; flex: 0 0 72px; }
+  .person .nums { flex: 1; font-size: 12.5px; color: #6a7180; }
+  .tag { padding: 3px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 700; white-space: nowrap; }
+  .tag.get { background: #e7f4ec; color: #2e7d4f; border: 1.5px solid var(--green); }
+  .tag.pay { background: #fdecea; color: #b33a32; border: 1.5px solid var(--red); }
+  .tag.even { background: #f2f0ea; color: #8a8f9a; border: 1.5px solid #d9d2c0; }
+
+  .transfer { display: flex; align-items: center; gap: 8px; padding: 10px 12px; margin: 8px 0; background: #fff; border: 2px solid var(--mustard); border-radius: 12px; font-size: 14.5px; }
+  .transfer .arrow { color: var(--orange); font-size: 18px; }
+  .transfer .money { margin-left: auto; font-weight: 700; color: var(--red); white-space: nowrap; }
+
+  .danger { margin-top: 10px; background: none; border: none; color: #b0b5bf; font-size: 12.5px; text-decoration: underline; font-family: "Noto Sans SC"; }
+  .danger:hover { color: var(--red); }
+  .foot { text-align: center; color: #8a8f9a; font-size: 12.5px; padding: 6px 20px 50px; line-height: 2.1; }
+  .foot a { color: var(--blue); text-decoration: none; border-bottom: 2px solid var(--mustard); }
+
+  @media (max-width: 640px) {
+    section { padding: 18px 14px 16px; }
+    .form-grid { grid-template-columns: 1fr 100px 90px; }
+    .exp { flex-wrap: wrap; gap: 4px 10px; }
+    .exp .t { flex: 1 1 100%; }
+    .exp .amt { text-align: left; font-size: 13px; }
+    .person { flex-wrap: wrap; gap: 4px 8px; }
+    .person .nm { flex: none; }
+    .person .nums { flex: 1 1 60%; }
+    .transfer { flex-wrap: wrap; }
+    .transfer .money { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <h1 class="hand-zh">AA 分账小工具</h1><br>
+  <span class="en hand-en">split the bill, stay friends!</span>
+  <p class="sub">自己填人数 · 每笔选谁一起 A · 多币种带汇率 · 自动算谁转给谁<br>数据只存在你自己手机浏览器里，不上传</p>
+  <a class="back" href="index.html">← 返回提示词包</a>
+</header>
+
+<div class="wrap">
+
+  <!-- 成员 -->
+  <section class="wobbly">
+    <h2 class="hand-zh">👯 旅伴们<span class="en hand-en">who's in?</span></h2>
+    <p class="hint">先把同行的人都加进来（2-12 人）</p>
+    <div class="chips" id="memberChips"></div>
+    <div class="row">
+      <input id="memberName" placeholder="名字，如：小潘" style="flex:1;min-width:120px" maxlength="8">
+      <button class="add-btn" id="addMember">＋ 加人</button>
+    </div>
+  </section>
+
+  <!-- 汇率 -->
+  <section class="wobbly2">
+    <h2 class="hand-zh">💱 汇率<span class="en hand-en">to ¥</span></h2>
+    <p class="hint">1 单位外币 = 多少人民币，可改（所有账统一折算成人民币）</p>
+    <div class="rates" id="rateGrid"></div>
+  </section>
+
+  <!-- 记账 -->
+  <section class="wobbly">
+    <h2 class="hand-zh">✏️ 记一笔<span class="en hand-en">add expense</span></h2>
+    <p class="hint">谁垫的钱选谁；这笔钱谁一起 A 就勾谁，不参与的把勾去掉</p>
+    <div class="form-grid">
+      <input id="expTitle" placeholder="买了啥？如：蓝湖晚餐">
+      <input id="expAmount" type="number" min="0" step="any" placeholder="金额">
+      <select id="expCcy"></select>
+    </div>
+    <div class="form-grid2">
+      <select id="expPayer"></select>
+      <div class="row" style="justify-content:flex-end">
+        <button class="add-btn" id="toggleAll" type="button">全选/全不选</button>
+      </div>
+    </div>
+    <div class="who" id="expWho"></div>
+    <button class="big-btn" id="addExp">🖍 记上这笔</button>
+  </section>
+
+  <!-- 账单 -->
+  <section class="wobbly2">
+    <h2 class="hand-zh">🧾 账单<span class="en hand-en" id="expCount"></span></h2>
+    <div id="expList"></div>
+  </section>
+
+  <!-- 看板 -->
+  <section class="wobbly">
+    <h2 class="hand-zh">📊 人均看板<span class="en hand-en">who owes who</span></h2>
+    <div class="sum-grid">
+      <div class="sum-box"><div class="v" id="sumTotal">¥0</div><div class="k">总花费（折人民币）</div></div>
+      <div class="sum-box"><div class="v" id="sumAvg">¥0</div><div class="k">总人均（参考）</div></div>
+    </div>
+    <div id="personList"></div>
+  </section>
+
+  <!-- 转账方案 -->
+  <section class="wobbly2">
+    <h2 class="hand-zh">🤝 转账方案<span class="en hand-en">settle up!</span></h2>
+    <p class="hint">按下面转完，大家两清 ✅</p>
+    <div id="settleList"></div>
+    <button class="danger" id="clearAll">🗑 清空全部数据（不可恢复）</button>
+  </section>
+
+</div>
+
+<footer class="foot">
+  手绘风 · 和 <a href="index.html">AI 旅行攻略提示词包</a> 是一套的<br>
+  <a href="https://github.com/335678296-creator/travel-planner-skill">GitHub</a>
+</footer>
+
+<script>
+const CCYS = ['CNY','ISK','NOK','EUR','USD','GBP','JPY','KRW','THB'];
+const DEFAULT_RATES = { CNY:1, ISK:0.053, NOK:0.68, EUR:7.8, USD:7.15, GBP:9.1, JPY:0.047, KRW:0.0052, THB:0.2 };
+const LS = 'aa-split-v1';
+const DEMO = location.search.includes('demo');
+
+let state = load();
+
+function load(){
+  if (DEMO) return {
+    members: ['我','小潘','老王','丽丽'],
+    rates: {...DEFAULT_RATES},
+    expenses: [
+      { title:'蓝湖 Retreat 两晚', amount:25400, ccy:'CNY', payer:'我', who:['我','小潘','老王','丽丽'] },
+      { title:'冰河湖游船', amount:63200, ccy:'ISK', payer:'小潘', who:['我','小潘','老王','丽丽'] },
+      { title:'便利店零食', amount:185, ccy:'CNY', payer:'老王', who:['我','老王','丽丽'] },
+      { title:'特罗姆瑟缆车', amount:830, ccy:'NOK', payer:'丽丽', who:['我','小潘','丽丽'] },
+    ]
+  };
+  try { const s = JSON.parse(localStorage.getItem(LS)); if (s && s.members) return s; } catch(e){}
+  return { members: [], rates: {...DEFAULT_RATES}, expenses: [] };
+}
+function save(){ if (!DEMO) localStorage.setItem(LS, JSON.stringify(state)); }
+const toCNY = (amt, ccy) => amt * (state.rates[ccy] ?? 1);
+const fmt = n => '¥' + n.toLocaleString('zh-CN', { maximumFractionDigits: n < 100 ? 1 : 0 });
+const esc = s => s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ── 渲染 ── */
+function render(){
+  // 成员
+  document.getElementById('memberChips').innerHTML = state.members.map(m =>
+    `<span class="chip">${esc(m)}<b data-del="${esc(m)}" title="移除">✕</b></span>`).join('') || '<span class="empty">还没有人，先加几个旅伴吧</span>';
+  // 汇率
+  document.getElementById('rateGrid').innerHTML = CCYS.filter(c=>c!=='CNY').map(c =>
+    `<div class="rate-cell"><label>${c}</label><input type="number" step="any" min="0" data-rate="${c}" value="${state.rates[c]}"></div>`).join('');
+  // 币种/付款人
+  document.getElementById('expCcy').innerHTML = CCYS.map(c=>`<option ${c==='ISK'?'':''}>${c}</option>`).join('');
+  document.getElementById('expPayer').innerHTML = state.members.map(m=>`<option>${esc(m)}</option>`).join('');
+  // 参与人
+  const who = document.getElementById('expWho');
+  const prev = new Set([...who.querySelectorAll('input:checked')].map(i=>i.value));
+  who.innerHTML = state.members.map(m =>
+    `<label class="${(prev.size?prev.has(m):true)?'on':''}"><input type="checkbox" value="${esc(m)}" ${(prev.size?prev.has(m):true)?'checked':''}>${esc(m)}</label>`).join('');
+  who.querySelectorAll('input').forEach(i => i.addEventListener('change', () => i.parentElement.classList.toggle('on', i.checked)));
+
+  // 账单
+  const list = document.getElementById('expList');
+  document.getElementById('expCount').textContent = state.expenses.length ? state.expenses.length + ' 笔' : '';
+  list.innerHTML = state.expenses.length ? state.expenses.map((e,i) =>
+    `<div class="exp">
+      <div class="t">${esc(e.title)}<small>${esc(e.payer)} 垫付 · ${e.who.length} 人 A（${e.who.map(esc).join('、')}）</small></div>
+      <div class="amt">${e.ccy==='CNY'?'':e.ccy+' '+e.amount.toLocaleString()+' ≈ '}${fmt(toCNY(e.amount,e.ccy))}<small>每人 ${fmt(toCNY(e.amount,e.ccy)/e.who.length)}</small></div>
+      <button class="del" data-i="${i}">✕</button>
+    </div>`).join('') : '<div class="empty">还没有账单，去上面记一笔吧 ✏️</div>';
+
+  // 看板
+  const total = state.expenses.reduce((s,e)=>s+toCNY(e.amount,e.ccy),0);
+  document.getElementById('sumTotal').textContent = fmt(total);
+  document.getElementById('sumAvg').textContent = state.members.length ? fmt(total/state.members.length) : '¥0';
+
+  const paid = {}, share = {};
+  state.members.forEach(m=>{paid[m]=0;share[m]=0;});
+  state.expenses.forEach(e=>{
+    const v = toCNY(e.amount,e.ccy);
+    if (paid[e.payer] !== undefined) paid[e.payer] += v;
+    e.who.forEach(m=>{ if (share[m] !== undefined) share[m] += v/e.who.length; });
+  });
+  document.getElementById('personList').innerHTML = state.members.map(m=>{
+    const diff = paid[m]-share[m];
+    const tag = Math.abs(diff)<0.5 ? '<span class="tag even">已两清</span>'
+      : diff>0 ? `<span class="tag get">应收 ${fmt(diff)}</span>` : `<span class="tag pay">应付 ${fmt(-diff)}</span>`;
+    return `<div class="person"><span class="nm">${esc(m)}</span><span class="nums">垫付 ${fmt(paid[m])} · 应摊 ${fmt(share[m])}</span>${tag}</div>`;
+  }).join('') || '<div class="empty">加完人、记完账，这里自动算</div>';
+
+  // 转账方案
+  const net = {}; state.members.forEach(m=>net[m]=paid[m]-share[m]);
+  const debtors=[], creditors=[];
+  Object.entries(net).forEach(([n,b])=>{ if(b>0.5)creditors.push([n,b]); else if(b<-0.5)debtors.push([n,-b]); });
+  debtors.sort((a,b)=>b[1]-a[1]); creditors.sort((a,b)=>b[1]-a[1]);
+  const res=[]; let i=0,j=0;
+  while(i<debtors.length&&j<creditors.length){
+    const pay=Math.min(debtors[i][1],creditors[j][1]);
+    res.push([debtors[i][0],creditors[j][0],pay]);
+    debtors[i][1]-=pay; creditors[j][1]-=pay;
+    if(debtors[i][1]<0.5)i++; if(creditors[j][1]<0.5)j++;
+  }
+  document.getElementById('settleList').innerHTML = res.length
+    ? res.map(([f,t,v])=>`<div class="transfer"><b>${esc(f)}</b><span class="arrow">➜</span><b>${esc(t)}</b><span class="money">${fmt(v)}</span></div>`).join('')
+    : '<div class="empty">'+(state.expenses.length?'大家都两清啦 🎉':'还没有要算的账')+'</div>';
+
+  // 绑定动态按钮
+  document.querySelectorAll('[data-del]').forEach(b => b.onclick = () => {
+    const m = b.dataset.del;
+    if (state.expenses.some(e => e.payer===m || e.who.includes(m))) { alert(`「${m}」名下还有账单，先删掉相关账单再移除`); return; }
+    state.members = state.members.filter(x=>x!==m); save(); render();
+  });
+  document.querySelectorAll('.del').forEach(b => b.onclick = () => { state.expenses.splice(+b.dataset.i,1); save(); render(); });
+  document.querySelectorAll('[data-rate]').forEach(inp => inp.onchange = () => { state.rates[inp.dataset.rate] = +inp.value || 0; save(); render(); });
+}
+
+document.getElementById('addMember').onclick = () => {
+  const inp = document.getElementById('memberName');
+  const name = inp.value.trim();
+  if (!name) return;
+  if (state.members.includes(name)) { alert('已经有这个人啦'); return; }
+  if (state.members.length >= 12) { alert('最多 12 人'); return; }
+  state.members.push(name); inp.value=''; save(); render();
+};
+document.getElementById('memberName').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('addMember').click(); });
+
+document.getElementById('toggleAll').onclick = () => {
+  const boxes = [...document.querySelectorAll('#expWho input')];
+  const allOn = boxes.every(b=>b.checked);
+  boxes.forEach(b=>{ b.checked=!allOn; b.parentElement.classList.toggle('on',!allOn); });
+};
+
+document.getElementById('addExp').onclick = () => {
+  const title = document.getElementById('expTitle').value.trim();
+  const amount = parseFloat(document.getElementById('expAmount').value);
+  const ccy = document.getElementById('expCcy').value;
+  const payer = document.getElementById('expPayer').value;
+  const who = [...document.querySelectorAll('#expWho input:checked')].map(i=>i.value);
+  if (!title) { alert('写一下买了啥'); return; }
+  if (!(amount > 0)) { alert('金额要大于 0'); return; }
+  if (!payer) { alert('先加旅伴'); return; }
+  if (!who.length) { alert('至少选一个人一起 A'); return; }
+  state.expenses.unshift({ title, amount, ccy, payer, who });
+  document.getElementById('expTitle').value=''; document.getElementById('expAmount').value='';
+  save(); render();
+};
+
+document.getElementById('clearAll').onclick = () => {
+  if (confirm('确定清空所有成员和账单？不可恢复！')) { state = { members: [], rates: {...DEFAULT_RATES}, expenses: [] }; save(); render(); }
+};
+
+render();
+</script>
+
+<script>
+window.addEventListener('load', () => {
+  const w = document.documentElement.clientWidth;
+  let worst = [];
+  document.querySelectorAll('*').forEach(el => {
+    const r = el.getBoundingClientRect();
+    if (r.width > w + 1) worst.push(el.tagName + '.' + (el.className.baseVal!==undefined?'':el.className) + '=' + Math.round(r.width));
+  });
+  const d = document.createElement('div');
+  d.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#ff0;color:#000;font:12px monospace;z-index:9999;padding:4px;white-space:pre-wrap;';
+  d.textContent = 'innerWidth=' + window.innerWidth + ' clientWidth=' + w + ' bodyScrollW=' + document.body.scrollWidth + '\n超宽: ' + worst.slice(0,8).join(' | ');
+  document.body.appendChild(d);
+});
+</script>
+
+</body>
+</html>
