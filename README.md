@@ -43,4 +43,3 @@ prompt-pack.md              给粉丝的复制即用提示词包
 ## 注意
 
 - 同步用 Nostr 公共中继，SK 嵌在公开页面 = 任何人可覆盖同步状态，只用于低风险协作页
-- 实战案例看板：https://335678296-creator.github.io/iceland-norway-2027/
